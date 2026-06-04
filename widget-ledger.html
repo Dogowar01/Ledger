@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#080808" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Ledger Widget" />
+<title>Ledger Widget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #060606;
+  color: #c8c8c8;
+  font-family: 'JetBrains Mono', monospace;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.65rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid #111;
+}
+.header-left { display: flex; flex-direction: column; gap: 0.1rem; }
+.header-title {
+  font-family: 'IM Fell English', serif;
+  font-size: 1.1rem;
+  color: #888;
+  letter-spacing: 0.03em;
+}
+.header-date {
+  font-size: 0.6rem;
+  color: #2e2e2e;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.refresh-btn {
+  background: none;
+  border: 1px solid #1a1a1a;
+  color: #2e2e2e;
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: all 0.15s;
+  font-family: inherit;
+  line-height: 1;
+}
+.refresh-btn:hover { color: #666; border-color: #333; }
+
+/* ── Combined totals strip ── */
+.totals-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin: 0.75rem 1.25rem 0;
+  border: 1px solid #141414;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0a0a0a;
+  flex-shrink: 0;
+}
+.tc {
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.tc + .tc { border-left: 1px solid #141414; }
+.tc-lbl {
+  font-size: 0.52rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #2e2e2e;
+}
+.tc-val {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.c-inc  { color: #6dbf8a; }
+.c-exp  { color: #e07c7c; }
+.c-pos  { color: #6dbf8a; }
+.c-neg  { color: #e07c7c; }
+.c-zero { color: #444; }
+
+/* ── Divider label ── */
+.section-label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #252525;
+  padding: 0.85rem 1.25rem 0.35rem;
+  flex-shrink: 0;
+}
+
+/* ── Business panels ── */
+.panels {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0 1.25rem;
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: 0.5rem;
+}
+
+.panel {
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  transition: transform 0.14s;
+  animation: slideUp 0.3s ease both;
+}
+.panel:active { transform: scale(0.985); }
+.panel:nth-child(1) { animation-delay: 0.05s; }
+.panel:nth-child(2) { animation-delay: 0.12s; }
+
+/* Signal9 panel — warm vintage */
+.panel-s9 {
+  background: linear-gradient(160deg, #1a1612 0%, #120f0a 100%);
+  border: 1px solid #2a1e0f;
+}
+.panel-s9:hover { border-color: #3a2a14; }
+
+/* AppSales panel — cold cyberpunk */
+.panel-ap {
+  background: linear-gradient(160deg, #0a0f14 0%, #060a0e 100%);
+  border: 1px solid #0a1a24;
+}
+.panel-ap:hover { border-color: #0d2030; }
+
+.panel-accent-bar { height: 2px; width: 100%; }
+
+.panel-inner { padding: 0.9rem 1.05rem 0.95rem; }
+
+.panel-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+.panel-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.panel-s9 .panel-name { font-family: 'IM Fell English', serif; }
+.panel-ap .panel-name { font-family: 'Courier Prime', monospace; }
+
+.panel-hint {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.panel:hover .panel-hint { opacity: 1; }
+
+/* Stats grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+.stat { display: flex; flex-direction: column; gap: 0.1rem; }
+.stat-lbl {
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #2e2e2e;
+}
+.stat-val {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Mini sparkline — last 6 months */
+.sparkline-wrap {
+  border-top: 1px solid #141414;
+  padding-top: 0.6rem;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.22rem;
+  height: 36px;
+}
+.spark-group {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 100%;
+}
+.spark-bar {
+  flex: 1;
+  border-radius: 1px 1px 0 0;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+.spark-lbl {
+  font-size: 0.48rem;
+  color: #242424;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  padding-top: 3px;
+  align-self: flex-end;
+  margin-bottom: -16px;
+}
+.spark-month-row {
+  display: flex;
+  gap: 0.22rem;
+  padding: 0 0 0;
+  margin-top: 2px;
+}
+.spark-month-lbl {
+  flex: 1;
+  font-size: 0.44rem;
+  color: #222;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+/* Month progress */
+.month-prog {
+  border-top: 1px solid #141414;
+  padding-top: 0.55rem;
+  margin-top: 0.1rem;
+}
+.month-prog-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.52rem;
+  color: #252525;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+.prog-track {
+  height: 3px;
+  background: #141414;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* ── Footer ── */
+.footer {
+  padding: 0.6rem 1.25rem 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  border-top: 1px solid #0e0e0e;
+}
+.footer-link {
+  font-size: 0.62rem;
+  color: #252525;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-link:hover { color: #555; }
+.footer-time { font-size: 0.56rem; color: #1e1e1e; }
+
+/* ── Animations ── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <span class="header-title">Ledger</span>
+      <span class="header-date" id="hdate"></span>
+    </div>
+    <button class="refresh-btn" onclick="render()" title="Refresh">↻</button>
+  </div>
+
+  <div class="totals-strip" id="totals"></div>
+  <div class="section-label">Businesses</div>
+
+  <div class="panels" id="panels"></div>
+
+  <div class="footer">
+    <a class="footer-link" href="./index.html">Open Ledger →</a>
+    <span class="footer-time" id="ftime"></span>
+  </div>
+</div>
+
+<script>
+// ── Config — matches index.html exactly ──────────────────────────
+const CURRENCY = { symbol: '$', locale: 'en-US' };
+const FY_START_MONTH = 6; // July = month index 6
+
+const BUSINESSES = [
+  {
+    key:    's9',
+    name:   'Signal9',
+    font:   "'IM Fell English', serif",
+    accent: '#c87941',
+    income: '#c87941',
+    expense:'#7eb8c9',
+    panelClass: 'panel-s9',
+    barColor: '#c87941',
+  },
+  {
+    key:    'ap',
+    name:   'AppSales',
+    font:   "'Courier Prime', monospace",
+    accent: '#00d2d2',
+    income: '#00d2d2',
+    expense:'#ff6b35',
+    panelClass: 'panel-ap',
+    barColor: '#00d2d2',
+  },
+];
+
+// ── Helpers ──────────────────────────────────────────────────────
+function fmt(n) {
+  const abs = Math.abs(n);
+  const prefix = n < 0 ? '-' : '';
+  if (abs >= 100000) return prefix + CURRENCY.symbol + (abs / 1000).toFixed(0) + 'k';
+  if (abs >= 10000)  return prefix + CURRENCY.symbol + (abs / 1000).toFixed(1) + 'k';
+  return prefix + CURRENCY.symbol + abs.toLocaleString(CURRENCY.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtS(n) { return (n >= 0 ? '+' : '') + fmt(n); }
+function today()     { return new Date().toISOString().split('T')[0]; }
+function thisMonth() { return today().slice(0, 7); }
+
+function getEntries(key) {
+  try { return JSON.parse(localStorage.getItem(key + '_entries') || '[]'); } catch { return []; }
+}
+
+function calcStats(entries) {
+  const todayStr  = today();
+  const monthStr  = thisMonth();
+  const now       = new Date();
+  const yr = now.getFullYear(), mo = now.getMonth();
+  const fyStartY  = mo >= FY_START_MONTH ? yr : yr - 1;
+  const fyStart   = `${fyStartY}-${String(FY_START_MONTH + 1).padStart(2,'0')}-01`;
+
+  let tI=0,tE=0, mI=0,mE=0, fI=0,fE=0;
+  entries.forEach(e => {
+    const a = Number(e.amount);
+    const inc = e.type === 'income';
+    if (e.date === todayStr)            { inc ? tI+=a : tE+=a; }
+    if (e.date.startsWith(monthStr))    { inc ? mI+=a : mE+=a; }
+    if (e.date >= fyStart)              { inc ? fI+=a : fE+=a; }
+  });
+  return {
+    today: { income: tI, expense: tE, net: tI-tE },
+    month: { income: mI, expense: mE, net: mI-mE,
+             count: entries.filter(e => e.date.startsWith(monthStr)).length },
+    fy:    { income: fI, expense: fE, net: fI-fE },
+  };
+}
+
+// Last N months as { label, income, expense } pairs
+function monthlyHistory(entries, months = 6) {
+  const now = new Date();
+  return Array.from({ length: months }, (_, i) => {
+    const d   = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleString('default', { month: 'short' }).toUpperCase();
+    const income  = entries.filter(e => e.type==='income'  && e.date.startsWith(key)).reduce((s,e)=>s+Number(e.amount),0);
+    const expense = entries.filter(e => e.type==='expense' && e.date.startsWith(key)).reduce((s,e)=>s+Number(e.amount),0);
+    return { label: lbl, income, expense };
+  });
+}
+
+function dayOfMonth()  { return new Date().getDate(); }
+function daysInMonth() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth()+1, 0).getDate(); }
+
+function netClass(n) { return n > 0 ? 'c-pos' : n < 0 ? 'c-neg' : 'c-zero'; }
+
+// ── Render ───────────────────────────────────────────────────────
+function render() {
+  const now = new Date();
+  document.getElementById('hdate').textContent =
+    now.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+  document.getElementById('ftime').textContent =
+    'Updated ' + now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+
+  // Gather stats for both businesses
+  const bizStats = BUSINESSES.map(b => ({ biz: b, entries: getEntries(b.key), stats: null }));
+  bizStats.forEach(r => { r.stats = calcStats(r.entries); });
+
+  // ── Combined totals strip ──
+  const allTodayNet  = bizStats.reduce((s,r) => s + r.stats.today.net,  0);
+  const allMonthInc  = bizStats.reduce((s,r) => s + r.stats.month.income, 0);
+  const allMonthExp  = bizStats.reduce((s,r) => s + r.stats.month.expense, 0);
+  const allMonthNet  = allMonthInc - allMonthExp;
+
+  document.getElementById('totals').innerHTML = `
+    <div class="tc">
+      <span class="tc-lbl">Today Net</span>
+      <span class="tc-val ${netClass(allTodayNet)}">${allTodayNet !== 0 ? fmtS(allTodayNet) : '—'}</span>
+    </div>
+    <div class="tc">
+      <span class="tc-lbl">MTD Income</span>
+      <span class="tc-val c-inc">${allMonthInc > 0 ? fmt(allMonthInc) : '—'}</span>
+    </div>
+    <div class="tc">
+      <span class="tc-lbl">MTD Net</span>
+      <span class="tc-val ${netClass(allMonthNet)}">${allMonthNet !== 0 ? fmtS(allMonthNet) : '—'}</span>
+    </div>
+  `;
+
+  // ── Business panels ──
+  const dayPct  = Math.round((dayOfMonth() / daysInMonth()) * 100);
+  const panelsEl = document.getElementById('panels');
+  panelsEl.innerHTML = '';
+
+  bizStats.forEach(({ biz, entries, stats }) => {
+    const history = monthlyHistory(entries, 6);
+    const maxVal  = Math.max(...history.map(h => Math.max(h.income, h.expense)), 1);
+
+    // Sparkline bars HTML
+    const sparkBars = history.map(h => {
+      const iH = Math.max(2, Math.round((h.income  / maxVal) * 28));
+      const eH = Math.max(2, Math.round((h.expense / maxVal) * 28));
+      return `
+        <div class="spark-group">
+          <div class="spark-bar" style="height:${iH}px; background:${biz.income}; opacity:0.6;"></div>
+          <div class="spark-bar" style="height:${eH}px; background:${biz.expense}; opacity:0.6;"></div>
+        </div>`;
+    }).join('');
+
+    const sparkLabels = history.map(h =>
+      `<div class="spark-month-lbl">${h.label.slice(0,1)}</div>`
+    ).join('');
+
+    const panel = document.createElement('a');
+    panel.className = `panel ${biz.panelClass}`;
+    panel.href = './index.html';
+
+    panel.innerHTML = `
+      <div class="panel-accent-bar" style="background: ${biz.accent};"></div>
+      <div class="panel-inner">
+        <div class="panel-top">
+          <span class="panel-name" style="color:${biz.accent}; font-family:${biz.font};">${biz.name}</span>
+          <span class="panel-hint" style="color:${biz.accent};">Open ↗</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat">
+            <span class="stat-lbl">Today</span>
+            <span class="stat-val ${netClass(stats.today.net)}" style="${stats.today.net===0?'color:#333':''}">
+              ${stats.today.income > 0 || stats.today.expense > 0 ? fmtS(stats.today.net) : '—'}
+            </span>
+          </div>
+          <div class="stat">
+            <span class="stat-lbl">MTD In</span>
+            <span class="stat-val" style="color:${biz.income};">${stats.month.income > 0 ? fmt(stats.month.income) : '—'}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-lbl">MTD Out</span>
+            <span class="stat-val" style="color:${biz.expense};">${stats.month.expense > 0 ? fmt(stats.month.expense) : '—'}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-lbl">FY Net</span>
+            <span class="stat-val ${netClass(stats.fy.net)}" style="${stats.fy.net===0?'color:#333':''}">
+              ${stats.fy.income > 0 || stats.fy.expense > 0 ? fmtS(stats.fy.net) : '—'}
+            </span>
+          </div>
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+          <div style="display:flex; gap:0.22rem; align-items:flex-end; height:30px;">${sparkBars}</div>
+          <div class="spark-month-row">${sparkLabels}</div>
+        </div>
+        <div class="month-prog">
+          <div class="month-prog-top">
+            <span>Month</span>
+            <span>${dayOfMonth()} / ${daysInMonth()} days · ${dayPct}%</span>
+          </div>
+          <div class="prog-track">
+            <div class="prog-fill" style="width:${dayPct}%; background:${biz.accent}; opacity:0.5;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    panelsEl.appendChild(panel);
+  });
+}
+
+render();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
